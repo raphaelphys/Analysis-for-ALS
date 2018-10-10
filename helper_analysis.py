@@ -14,6 +14,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scipy.optimize as optimize
 from scipy.interpolate import interp1d
 
+
 def integrators(x, y, xlim):
     
     '''
@@ -174,7 +175,7 @@ class hist1d:
         
     @property
     def edgeData(self):
-        return self.edges, np.int64(self.hists)
+        return self.edges, self.hists
     
     @property
     def centerData(self):
@@ -201,11 +202,25 @@ class hist2d:
     def fill(self, xarr, yarr):
         hists = histogram2d(xarr, yarr, [self.nxbins, self.nybins], [self.xrange, self.yrange] )
         self.hists += hists
+    
+    @property
+    def edgeData(self):
+        return self.xedges, self.yedges, self.hists
         
     @property
     def centerData(self):
         return self.xcenters, self.ycenters, self.hists
         
+
+def init_hist1d(xmin, xmax, binSize):
+    nBins = np.int64((xmax - xmin)/binSize)
+    return xmin, xmax, nBins
+
+def init_hist2d(xmin, xmax, xbinSize, ymin, ymax, ybinSize):
+    xnBins = np.int64((xmax - xmin)/xbinSize)
+    ynBins = np.int64((ymax - ymin)/ybinSize)
+    return xmin, xmax, ymin, ymax, xnBins, ynBins
+    
         
         
 def gaussian(height, center_x, center_y, width_x, width_y):
@@ -273,3 +288,62 @@ def center_by_moments(x_data, y_data, z_data, need_plot=True):
     center_y = fy(y)
     
     return center_x.item(), center_y.item()
+
+
+
+def cosineAnglefromMomenta(p1x, p1y, p1z, p2x, p2y, p2z):
+    m1_p2D = np.vstack((p1x, p1y, p1z)).T
+    m2_p2D = np.vstack((p2x, p2y, p2z)).T
+    ang = ((m1_p2D * m2_p2D).sum(axis=1))/(np.linalg.norm(m1_p2D, axis=1) * np.linalg.norm(m2_p2D, axis=1))
+    return ang
+
+
+def singleListTwoConditions(ionTOF, cond1, cond2):
+
+    chk1 = (ionTOF > cond1[0]) & (ionTOF < cond1[1])
+    chk2 = (ionTOF > cond2[0]) & (ionTOF < cond2[1])
+    
+    if chk2.any() and chk1.any():
+        cond = chk1 | chk2
+    else: cond = chk1 & chk2
+    return cond
+
+def oneCondition(ionTOF, cond1):
+    cond = (ionTOF > cond1[0]) & (ionTOF < cond1[1])
+    return cond
+
+
+def twoConditions(ionTOF, cond1, cond2):
+
+    indices = ionTOF.size
+    checkList = np.zeros(indices, dtype=bool)
+    for i in range(0, indices):
+        if cond1[0] < ionTOF[i] < cond1[1]:
+            checkList[i] = True
+            for j in range(i+1, indices):
+                if cond2[0] < ionTOF[j] < cond2[1]:
+                    checkList[j] = True
+                    break
+            break
+        
+    return checkList
+
+
+def threeConditions(ionTOF, cond1, cond2, cond3):
+
+    indices = ionTOF.size
+    checkList = np.zeros(indices, dtype=bool)
+    for i in range(0, indices):
+        if cond1[0] < ionTOF[i] < cond1[1]:
+            checkList[i] = True
+            for j in range(i+1, indices):
+                if cond2[0] < ionTOF[j] < cond2[1]:
+                    checkList[j] = True
+                    for k in range(j+1, indices):
+                        if cond3[0] < ionTOF[k] < cond3[1]:
+                            checkList[k] = True
+                            break
+                    break
+            break
+        
+    return checkList
